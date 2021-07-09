@@ -15,35 +15,32 @@ namespace FhirLoader
 {
     class Program
     {
-        static void Main(
-            string inputFolder,
-            Uri fhirServerUrl,
-            Uri authority = null,
-            string clientId = null,
-            string clientSecret = null,
-            string accessToken = null,
-            string bufferFileName = "resources.json",
-            bool reCreateBufferIfExists = false,
-            bool forcePost = false,
-            int maxDegreeOfParallelism = 8,
-            int refreshInterval = 5)
-        {
 
+        static void Main(
+            string fhirServer = "https://quwanossfhirserver0527.azurewebsites.net",
+            string accessToken = null,
+            string folderPath = @"C:\quwan\FHIR-examples\synathea1G\Small",
+            int maxDegreeOfParallelism = 30,
+            int refreshInterval = 20)
+        {
+            Uri fhirServerUrl = new Uri(fhirServer);
+            string[] filePaths = Directory.GetFiles(folderPath);
+            foreach (string filePath in filePaths)
+            {
+                Console.WriteLine($"Process {filePath}");
+                Upload(fhirServerUrl, accessToken, filePath, maxDegreeOfParallelism, refreshInterval);
+            }
+        }
+
+        static void Upload(
+            Uri fhirServerUrl,
+            string accessToken,
+            string bufferFileName,
+            int maxDegreeOfParallelism,
+            int refreshInterval)
+        {
             HttpClient httpClient = new HttpClient();
             MetricsCollector metrics = new MetricsCollector();
-
-            // Create an ndjson file from the FHIR bundles in folder
-            if (!(new FileInfo(bufferFileName).Exists) || reCreateBufferIfExists)
-            {
-                Console.WriteLine("Creating ndjson buffer file...");
-                CreateBufferFile(inputFolder, bufferFileName);
-                Console.WriteLine("Buffer created.");
-            }
-
-            bool useAuth = authority != null && clientId != null && clientSecret != null && accessToken == null;
-
-            AuthenticationContext authContext = useAuth ? new AuthenticationContext(authority.AbsoluteUri, new TokenCache()) : null;
-            ClientCredential clientCredential = useAuth ? new ClientCredential(clientId, clientSecret) : null;
 
             var randomGenerator = new Random();
 
@@ -66,7 +63,7 @@ namespace FhirLoader
                                 TimeSpan.FromMilliseconds(12000 + randomGenerator.Next(50)),
                                 TimeSpan.FromMilliseconds(16000 + randomGenerator.Next(50)),
                         };
- 
+
                 HttpResponseMessage uploadResult = await Policy
                     .HandleResult<HttpResponseMessage>(response => !response.IsSuccessStatusCode)
                     .WaitAndRetryAsync(pollyDelays, (result, timeSpan, retryCount, context) =>
@@ -78,18 +75,10 @@ namespace FhirLoader
                     })
                     .ExecuteAsync(() =>
                     {
-                        var message = forcePost || string.IsNullOrEmpty(id)
-                            ? new HttpRequestMessage(HttpMethod.Post, new Uri(fhirServerUrl, $"/{resource_type}"))
-                            : new HttpRequestMessage(HttpMethod.Put, new Uri(fhirServerUrl, $"/{resource_type}/{id}"));
+                        var message = new HttpRequestMessage(HttpMethod.Put, new Uri(fhirServerUrl, $"/{resource_type}/{id}"));
 
                         message.Content = content;
-
-                        if (useAuth)
-                        {
-                            var authResult = authContext.AcquireTokenAsync(fhirServerUrl.AbsoluteUri.TrimEnd('/'), clientCredential).Result;
-                            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
-                        }
-                        else if (accessToken != null)
+                        if (!string.IsNullOrEmpty(accessToken))
                         {
                             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                         }
@@ -101,7 +90,7 @@ namespace FhirLoader
                 {
                     string resultContent = await uploadResult.Content.ReadAsStringAsync();
                     Console.WriteLine(resultContent);
-                    throw new Exception($"Unable to upload to server. Error code {uploadResult.StatusCode}");
+                    // throw new Exception($"Unable to upload to server. Error code {uploadResult.StatusCode}");
                 }
 
                 metrics.Collect(DateTime.Now);
@@ -113,7 +102,7 @@ namespace FhirLoader
             );
 
             // Start output on timer
-            var t = new Task( () => {
+            var t = new Task(() => {
                 while (true)
                 {
                     Thread.Sleep(1000 * refreshInterval);
@@ -132,45 +121,6 @@ namespace FhirLoader
 
             actionBlock.Complete();
             actionBlock.Completion.Wait();
-        }
-
-        private static void CreateBufferFile(string inputFolder, string bufferFileName)
-        {
-            using (System.IO.StreamWriter outFile = new System.IO.StreamWriter(bufferFileName))
-            {
-                string[] files = Directory.GetFiles(inputFolder, "*.json", SearchOption.TopDirectoryOnly);
-
-                foreach (var file in files)
-                {
-                    string bundleText = File.ReadAllText(file);
-
-                    JObject bundle;
-                    try
-                    {
-                        bundle = JObject.Parse(bundleText);
-                    }
-                    catch (JsonReaderException)
-                    {
-                        Console.WriteLine("Input file is not a valid JSON document");
-                        throw;
-                    }
-
-                    try
-                    {
-                        SyntheaReferenceResolver.ConvertUUIDs(bundle);
-                    }
-                    catch
-                    {
-                        Console.WriteLine("Failed to resolve references in doc");
-                        throw;
-                    }
-
-                    foreach (var r in bundle.SelectTokens("$.entry[*].resource"))
-                    {
-                        outFile.WriteLine(r.ToString(Formatting.None));
-                    }
-                }
-            }
         }
     }
 }
