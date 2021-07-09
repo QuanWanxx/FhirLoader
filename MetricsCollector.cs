@@ -67,5 +67,19 @@ namespace FhirLoader
                 }
             }
         }
+
+        ///<summary>
+        /// Return events sum
+        ///</summary>
+        public long EventsSum
+        {
+            get
+            {
+                lock (_metricsLock)
+                {
+                    return _counts.Sum();
+                }
+            }
+        }
     }
 }

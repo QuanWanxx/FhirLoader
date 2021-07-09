@@ -106,7 +106,7 @@ namespace FhirLoader
                 while (true)
                 {
                     Thread.Sleep(1000 * refreshInterval);
-                    Console.WriteLine($"Resources per second: {metrics.EventsPerSecond}");
+                    Console.WriteLine($"Resources per second: {metrics.EventsPerSecond},   total: {metrics.EventsSum}");
                 }
             });
             t.Start();
