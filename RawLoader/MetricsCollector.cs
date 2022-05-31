@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace FhirLoader
+namespace FhirLoader.RawLoader
 {
     ///<summary>
     /// Simple class for collecting events.
