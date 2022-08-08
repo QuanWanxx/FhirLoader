@@ -8,6 +8,10 @@ namespace FhirLoader
 {
     class Program
     {
+        /// <summary>
+        /// Update the ndjson files to fhir service.
+        /// Need to provide the directory path where ndjson files been saved.
+        /// </summary>
         static void Main()
         {
             var config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("config.json"));

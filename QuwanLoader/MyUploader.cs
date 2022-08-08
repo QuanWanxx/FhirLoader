@@ -1,28 +1,28 @@
-﻿using Newtonsoft.Json.Linq;
-using Polly;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using Polly;
 
 namespace FhirLoader.QuwanLoader
 {
     public class MyUploader
     {
-        public readonly Uri FhirServerUrl;
-        public readonly string AccessToken;
-        public readonly int MaxTaskCount;
+        private readonly Uri _fhirServerUrl;
+        private readonly string _accessToken;
+        private readonly int _maxTaskCount;
 
         private readonly Random _randomGenerator;
         private readonly HttpClient _httpClient;
 
         public MyUploader(string fhirServerUrl, string accessToken = null, int maxTaskCount = 30)
         {
-            FhirServerUrl = new Uri(fhirServerUrl);
-            AccessToken = accessToken;
-            MaxTaskCount = maxTaskCount;
+            _fhirServerUrl = new Uri(fhirServerUrl);
+            _accessToken = accessToken;
+            _maxTaskCount = maxTaskCount;
 
             _randomGenerator = new Random();
             _httpClient = new HttpClient();
@@ -35,7 +35,7 @@ namespace FhirLoader.QuwanLoader
             var tasks = new List<Task>();
             foreach (var resourceString in resources)
             {
-                if (tasks.Count >= MaxTaskCount)
+                if (tasks.Count >= _maxTaskCount)
                 {
                     var finishedTask = await Task.WhenAny(tasks);
                     if (finishedTask.IsFaulted)
@@ -94,12 +94,12 @@ namespace FhirLoader.QuwanLoader
                     })
                     .ExecuteAsync(() =>
                     {
-                        var message = new HttpRequestMessage(HttpMethod.Put, new Uri(FhirServerUrl, $"/{resourceType}/{id}"));
+                        var message = new HttpRequestMessage(HttpMethod.Put, new Uri(_fhirServerUrl, $"/{resourceType}/{id}"));
 
                         message.Content = content;
-                        if (!string.IsNullOrEmpty(AccessToken))
+                        if (!string.IsNullOrEmpty(_accessToken))
                         {
-                            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+                            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
                         }
 
                         return _httpClient.SendAsync(message);
