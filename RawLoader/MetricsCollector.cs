@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace FhirLoader
+namespace FhirLoader.RawLoader
 {
     ///<summary>
     /// Simple class for collecting events.
@@ -64,6 +64,20 @@ namespace FhirLoader
                 lock (_metricsLock)
                 {
                     return (double)_counts.Sum() / (_resolutionMs * (_maxBinIndex + 1) / 1000.0);
+                }
+            }
+        }
+
+        ///<summary>
+        /// Return events sum
+        ///</summary>
+        public long EventsSum
+        {
+            get
+            {
+                lock (_metricsLock)
+                {
+                    return _counts.Sum();
                 }
             }
         }

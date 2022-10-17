@@ -1,5 +1,4 @@
 obj/
 .vscode/
 .vs/
-*.json
 bin/

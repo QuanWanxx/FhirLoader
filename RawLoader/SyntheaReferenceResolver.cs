@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 
-namespace FhirLoader
+namespace FhirLoader.RawLoader
 {
     ///<summary>
     /// Utility class for resolving Synthea bundle references
