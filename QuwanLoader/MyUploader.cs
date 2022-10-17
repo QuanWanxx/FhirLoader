@@ -108,7 +108,7 @@ namespace FhirLoader.QuwanLoader
             if (!uploadResult.IsSuccessStatusCode)
             {
                 string resultContent = await uploadResult.Content.ReadAsStringAsync();
-                throw new Exception($"Unable to upload to server. Error code: {uploadResult.StatusCode}, resource content: {resourceString}");
+                Console.WriteLine($"Unable to upload to server. Error code: {uploadResult.StatusCode}, resource content: {resourceString}");
             }
         }
     }
