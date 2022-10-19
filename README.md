@@ -12,3 +12,11 @@ Configurate the config.json to upload local FHIR ndjson files to FHIR Services.
 }
 ```
 
+## New Loader
+
+Change config in Quwan loader `appsettings.json` and set appropriate permissions to FHIR server and blob storage. 
+```sh
+cd QuwanLoader
+dotnet run
+```
+
