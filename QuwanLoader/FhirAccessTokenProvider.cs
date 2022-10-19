@@ -16,7 +16,7 @@ namespace FhirLoader.QuwanLoader
     {
         private readonly TokenCredential _tokenCredential;
         private ConcurrentDictionary<string, AccessToken> _accessTokenDic = new ();
-        private const int _tokenExpireInterval = 15;
+        private const int _tokenExpireInterval = 3;
         private object _lock = new object ();
         ILogger<FhirAccessTokenProvider> _logger;
 
@@ -30,18 +30,18 @@ namespace FhirLoader.QuwanLoader
         {
             try
             {
-                if (!_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken) || string.IsNullOrEmpty(accessToken.Token) || accessToken.ExpiresOn < DateTime.UtcNow.AddMinutes(_tokenExpireInterval))
+                if (!_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken) || string.IsNullOrEmpty(accessToken.Token) || accessToken.ExpiresOn < DateTimeOffset.UtcNow.AddMinutes(_tokenExpireInterval))
                 {
                     lock (_lock)
                     {
                         _logger.LogInformation("Entering lock, try to refresh token.");
-                        if (!_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken2) || string.IsNullOrEmpty(accessToken2.Token) || accessToken2.ExpiresOn < DateTime.UtcNow.AddMinutes(_tokenExpireInterval))
+                        if (!_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken2) || string.IsNullOrEmpty(accessToken2.Token) || accessToken2.ExpiresOn < DateTimeOffset.UtcNow.AddMinutes(_tokenExpireInterval))
                         {
                             var scopes = new string[] { resourceUrl.TrimEnd('/') + "/.default" };
                             accessToken = _tokenCredential.GetToken(new TokenRequestContext(scopes), cancellationToken);
                             _accessTokenDic.AddOrUpdate(resourceUrl, accessToken, (key, value) => accessToken);
 
-                            _logger.LogInformation("Entering lock, acquired refresh token.");
+                            _logger.LogInformation($"Entering lock, acquired refresh token. expires at {accessToken.ExpiresOn}");
 
                             return accessToken.Token;
                         }
