@@ -23,6 +23,8 @@ namespace FhirLoader.QuwanLoader
         private ConcurrentDictionary<string, AccessToken> _accessTokenDic = new ();
         private const int _tokenExpireInterval = 3;
         private object _lock = new object ();
+        private object _lockBg = new object();
+
         ILogger<FhirAccessTokenProvider> _logger;
 
         public FhirAccessTokenProvider(
@@ -63,16 +65,20 @@ namespace FhirLoader.QuwanLoader
         private void RefreshToken(object source, ElapsedEventArgs e)
         {
             _logger.LogInformation("Checking token from background thread");
-
-            foreach (var resourceUrl in _accessTokenDic.Keys)
+            lock (_lockBg)
             {
-                if (_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken) && accessToken.ExpiresOn < DateTimeOffset.UtcNow.AddMinutes(4))
+                foreach (var resourceUrl in _accessTokenDic.Keys)
                 {
-                    var scopes = new string[] { resourceUrl.TrimEnd('/') + "/.default" };
-                    var newToken = _tokenCredential.GetToken(new TokenRequestContext(scopes), default);
-                    _accessTokenDic.TryUpdate(resourceUrl, newToken, accessToken);
+                    if (_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken) && accessToken.ExpiresOn < DateTimeOffset.UtcNow.AddMinutes(4))
+                    {
+                        _logger.LogInformation("Try to referesh token from background thread");
 
-                    _logger.LogInformation("Refereshed token from background thread");
+                        var scopes = new string[] { resourceUrl.TrimEnd('/') + "/.default" };
+                        var newToken = _tokenCredential.GetToken(new TokenRequestContext(scopes), default);
+                        _accessTokenDic.TryUpdate(resourceUrl, newToken, accessToken);
+
+                        _logger.LogInformation("Refereshed token from background thread");
+                    }
                 }
             }
         }

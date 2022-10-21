@@ -23,6 +23,7 @@ namespace FhirLoader.QuwanLoader
                     configHost.AddEnvironmentVariables(prefix: "PREFIX_");
                     configHost.AddCommandLine(args);
                 })
+               .ConfigureLogging(builder => builder.AddFile()) // <- Add this line
                .ConfigureServices((context, services) =>
                {
                    var configurationRoot = context.Configuration;
