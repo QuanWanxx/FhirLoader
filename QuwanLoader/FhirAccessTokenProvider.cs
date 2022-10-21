@@ -49,6 +49,17 @@ namespace FhirLoader.QuwanLoader
             _refreshTimer.Start();
         }
 
+        public void EnsureInitialized(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (_accessTokenDic.Count > 0)
+                {
+                    break;
+                }
+            }
+        }
+
         private void RefreshToken(object source, ElapsedEventArgs e)
         {
             _logger.LogInformation("Checking token from background thread");

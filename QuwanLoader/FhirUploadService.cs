@@ -18,6 +18,7 @@ namespace QuwanLoader
     {
         private BlobStreamReader _blobReader;
         private FhirUploader _fhirUploader;
+        private FhirAccessTokenProvider _tokenProvider;
         private ILogger<FhirUploadService> _logger;
         private TelemetryClient _telemetryClient;
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
@@ -26,12 +27,14 @@ namespace QuwanLoader
             IHostApplicationLifetime hostApplicationLifetime,
             BlobStreamReader blobReader,
             FhirUploader fhirUploader,
+            FhirAccessTokenProvider tokenProvider,
             TelemetryClient tc,
             ILogger<FhirUploadService> logger)
         {
             _hostApplicationLifetime = hostApplicationLifetime;
             _blobReader = blobReader;
             _fhirUploader = fhirUploader;
+            _tokenProvider = tokenProvider;
 
             _telemetryClient = tc;
             _logger = logger;
@@ -39,6 +42,8 @@ namespace QuwanLoader
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            _tokenProvider.EnsureInitialized(cancellationToken);
+
             using (_telemetryClient.StartOperation<RequestTelemetry>("UploadFhir"))
             {
                 _logger.LogInformation("Start upload service.");
