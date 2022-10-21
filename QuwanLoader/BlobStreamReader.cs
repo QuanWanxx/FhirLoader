@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System.IO.Enumeration;
 using Microsoft.Extensions.Options;
 using QuwanLoader;
+using System.Threading;
 
 public class BlobStreamReader
 {
@@ -28,7 +29,7 @@ public class BlobStreamReader
         _readBlobConcurrency = config.Value.ReadBlobConcurrency;
         _logger = logger;
     }
-    public async Task ReadAsync( ChannelWriter<ResourceItem> writer)
+    public async Task ReadAsync(ChannelWriter<ResourceItem> writer, CancellationToken cancellationToken = default)
     {
         List<string> blobUrls = LoadBlobFileList(_blobListFileName);
         _logger.LogInformation($"Loaded {blobUrls.Count()} blob urls from {_blobListFileName}.");
@@ -43,7 +44,7 @@ public class BlobStreamReader
                 tasks.Remove(finishedTask);
             }
 
-            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer)));
+            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, cancellationToken)));
         }
 
         await Task.WhenAll(tasks);
@@ -51,12 +52,13 @@ public class BlobStreamReader
         writer.Complete();
     }
 
-    private async Task ReadSingleBlobAsync(string blobUrl, ChannelWriter<ResourceItem> writer)
+    private async Task ReadSingleBlobAsync(string blobUrl, ChannelWriter<ResourceItem> writer, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation($"Read blob content from {blobUrl}");
+        cancellationToken.ThrowIfCancellationRequested();
 
         var blobClient = new BlobClient(new Uri(blobUrl), new DefaultAzureCredential());
-        using var stream = await blobClient.OpenReadAsync(0, bufferSize: 40960);
+        using var stream = await blobClient.OpenReadAsync(0, bufferSize: 40960, cancellationToken: cancellationToken);
         using var streamReader = new StreamReader(stream);
         string line;
         int index = 1;

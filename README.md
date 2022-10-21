@@ -14,6 +14,10 @@ Configurate the config.json to upload local FHIR ndjson files to FHIR Services.
 
 ## New Loader
 
+### Set up steps
+1. Run ```az login``` to setup default identity.
+2. [optional] set `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable to add application insights logging.
+
 Change config in Quwan loader `appsettings.json` and set appropriate permissions to FHIR server and blob storage. 
 ```sh
 cd QuwanLoader

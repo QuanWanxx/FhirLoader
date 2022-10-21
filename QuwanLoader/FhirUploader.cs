@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -62,13 +63,13 @@ namespace FhirLoader.QuwanLoader
                         });
         }
 
-        public async Task UploadAsync(ChannelReader<ResourceItem> channelReader)
+        public async Task UploadAsync(ChannelReader<ResourceItem> channelReader, CancellationToken cancellationToken = default)
         {
             var tasks = new List<Task<int>>();
             for(int i = 0; i < _maxTaskCount; i ++)
             {
                 string workerId = $"Worker {i}";
-                tasks.Add(Task.Run(() => UploadInternalAsync(workerId, channelReader)));
+                tasks.Add(Task.Run(() => UploadInternalAsync(workerId, channelReader, cancellationToken)));
             }
             _logger.LogInformation($"Initialized {tasks.Count()} FHIR uploaders.");
 
@@ -76,15 +77,17 @@ namespace FhirLoader.QuwanLoader
             _logger.LogInformation($"Upload finished: {counts.Sum()} resources loaded.");
         }
 
-        private async Task<int> UploadInternalAsync(string id, ChannelReader<ResourceItem> channelReader)
+        private async Task<int> UploadInternalAsync(string id, ChannelReader<ResourceItem> channelReader, CancellationToken cancellationToken = default)
         {
             int processedCount = 0;
             while (await channelReader.WaitToReadAsync())
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var resourceItem = await channelReader.ReadAsync();
                 StringContent content = new StringContent(resourceItem.Resource, Encoding.UTF8, "application/json");
 
-                string accessToken = _needAuth ? await _accessTokenProvider.GetAccessTokenAsync(_fhirServerUrl.AbsoluteUri) : string.Empty;
+                string accessToken = _needAuth ? await _accessTokenProvider.GetAccessTokenAsync(_fhirServerUrl.AbsoluteUri, cancellationToken) : string.Empty;
                 var message = new HttpRequestMessage(HttpMethod.Put, new Uri(_fhirServerUrl, $"/{resourceItem.ResourceType}/{resourceItem.Id}"));
 
                 message.Content = content;
@@ -96,12 +99,12 @@ namespace FhirLoader.QuwanLoader
                 HttpResponseMessage uploadResult = await _retryPolicy
                         .ExecuteAsync(() =>
                         {
-                            return _httpClient.SendAsync(message);
+                            return _httpClient.SendAsync(message, cancellationToken);
                         });
 
                 if (!uploadResult.IsSuccessStatusCode)
                 {
-                    string resultContent = await uploadResult.Content.ReadAsStringAsync();
+                    string resultContent = await uploadResult.Content.ReadAsStringAsync(cancellationToken);
                     _logger.LogError($"Unable to upload to server. Error code: {uploadResult.StatusCode}, resource content: {resourceItem.Resource}");
                 }
 

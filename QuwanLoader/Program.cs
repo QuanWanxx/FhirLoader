@@ -23,9 +23,6 @@ namespace FhirLoader.QuwanLoader
                     configHost.AddEnvironmentVariables(prefix: "PREFIX_");
                     configHost.AddCommandLine(args);
                 })
-                .ConfigureLogging((_, logging) =>
-                    logging.ClearProviders()
-                    .AddConsole())
                .ConfigureServices((context, services) =>
                {
                    var configurationRoot = context.Configuration;
@@ -35,7 +32,8 @@ namespace FhirLoader.QuwanLoader
                     .AddSingleton<FhirAccessTokenProvider>()
                     .AddSingleton<FhirUploader>()
                     .AddSingleton<BlobStreamReader>()
-                    .AddHostedService<FhirUploadService>();
+                    .AddHostedService<FhirUploadService>()
+                    .AddApplicationInsightsTelemetryWorkerService();
                }).Build();
 
             // Application code should start here.
