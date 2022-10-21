@@ -23,5 +23,14 @@ namespace QuwanLoader
 
         [JsonProperty("putFhirConcurrency")]
         public int PutFhirConcurrency { get; set; }
+
+        [JsonProperty("tenantId")]
+        public string TenantId { get; set; }
+
+        [JsonProperty("clientId")]
+        public string ClientId { get; set; }
+
+        [JsonProperty("clientSecret")]
+        public string ClientSecret { get; set; }
     }
 }

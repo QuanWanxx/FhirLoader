@@ -12,6 +12,7 @@ using System.IO.Enumeration;
 using Microsoft.Extensions.Options;
 using QuwanLoader;
 using System.Threading;
+using Azure.Core;
 
 public class BlobStreamReader
 {
@@ -19,6 +20,7 @@ public class BlobStreamReader
     private readonly string _blobListFileName;
     private readonly int _readBlobConcurrency;
     private readonly ILogger<BlobStreamReader> _logger;
+    private readonly TokenCredential _tokenCredential;
 
     public BlobStreamReader(
         IOptions<UploadConfiguration> config,
@@ -28,6 +30,19 @@ public class BlobStreamReader
         _blobListFileName = config.Value.BlobListFile;
         _readBlobConcurrency = config.Value.ReadBlobConcurrency;
         _logger = logger;
+
+        if (!string.IsNullOrEmpty(config.Value.TenantId)
+            && !string.IsNullOrEmpty(config.Value.ClientSecret)
+            && !string.IsNullOrEmpty(config.Value.ClientId))
+        {
+            _logger.LogInformation("Using client secret credential.");
+            _tokenCredential = new ClientSecretCredential(config.Value.TenantId, config.Value.ClientId, config.Value.ClientSecret);
+        }
+        else
+        {
+            _logger.LogInformation("Using default azure credential.");
+            _tokenCredential = new DefaultAzureCredential();
+        }
     }
     public async Task ReadAsync(ChannelWriter<ResourceItem> writer, CancellationToken cancellationToken = default)
     {
@@ -57,7 +72,7 @@ public class BlobStreamReader
         _logger.LogInformation($"Read blob content from {blobUrl}");
         cancellationToken.ThrowIfCancellationRequested();
 
-        var blobClient = new BlobClient(new Uri(blobUrl), new DefaultAzureCredential());
+        var blobClient = new BlobClient(new Uri(blobUrl), _tokenCredential);
         using var stream = await blobClient.OpenReadAsync(0, bufferSize: 40960, cancellationToken: cancellationToken);
         using var streamReader = new StreamReader(stream);
         string line;

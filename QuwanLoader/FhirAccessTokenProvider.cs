@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using QuwanLoader;
 
 namespace FhirLoader.QuwanLoader
 {
@@ -20,10 +22,23 @@ namespace FhirLoader.QuwanLoader
         private object _lock = new object ();
         ILogger<FhirAccessTokenProvider> _logger;
 
-        public FhirAccessTokenProvider(ILogger<FhirAccessTokenProvider> logger)
+        public FhirAccessTokenProvider(
+            IOptions<UploadConfiguration> config,
+            ILogger<FhirAccessTokenProvider> logger)
         {
             _logger = logger;
-            _tokenCredential = new DefaultAzureCredential();
+            if (!string.IsNullOrEmpty(config.Value.TenantId)
+                && !string.IsNullOrEmpty(config.Value.ClientSecret)
+                && !string.IsNullOrEmpty(config.Value.ClientId))
+            {
+                _logger.LogInformation("Using client secret credential.");
+                _tokenCredential = new ClientSecretCredential(config.Value.TenantId, config.Value.ClientId, config.Value.ClientSecret);
+            }
+            else
+            {
+                _logger.LogInformation("Using default azure credential.");
+                _tokenCredential = new DefaultAzureCredential();
+            }
         }
 
         public async Task<string> GetAccessTokenAsync(string resourceUrl, CancellationToken cancellationToken = default)
