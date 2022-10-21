@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -8,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Azure.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Client;
@@ -56,10 +58,18 @@ namespace FhirLoader.QuwanLoader
                     TimeSpan.FromMilliseconds(16000 + _randomGenerator.Next(50)),
             };
             _retryPolicy = Policy
-                        .HandleResult<HttpResponseMessage>(response => !response.IsSuccessStatusCode)
+                        .Handle<HttpRequestException>()
+                        .OrResult<HttpResponseMessage>(response => !response.IsSuccessStatusCode)
                         .WaitAndRetryAsync(pollyDelays, (result, timeSpan, retryCount, context) =>
                         {
-                            _logger.LogWarning($"Request failed with {result.Result.StatusCode}. Waiting {timeSpan} before next retry. Retry attempt {retryCount}");
+                            string error = result.Exception?.ToString();
+                            if (error == null)
+                            {
+                                var content = result.Result.Content.ReadAsStream();
+                                using var streamReader = new StreamReader(content);
+                                error = streamReader.ReadToEnd();
+                            }
+                            _logger.LogWarning($"Request failed with {result?.Result?.StatusCode}. {result.Result?.RequestMessage?.RequestUri}: {error}. Waiting {timeSpan} before next retry. Retry attempt {retryCount}");
                         });
         }
 

@@ -2,11 +2,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using QuwanLoader;
+using Timer = System.Timers.Timer;
 
 namespace FhirLoader.QuwanLoader
 {
@@ -17,6 +19,7 @@ namespace FhirLoader.QuwanLoader
     public class FhirAccessTokenProvider
     {
         private readonly TokenCredential _tokenCredential;
+        private Timer _refreshTimer;
         private ConcurrentDictionary<string, AccessToken> _accessTokenDic = new ();
         private const int _tokenExpireInterval = 3;
         private object _lock = new object ();
@@ -38,6 +41,28 @@ namespace FhirLoader.QuwanLoader
             {
                 _logger.LogInformation("Using default azure credential.");
                 _tokenCredential = new DefaultAzureCredential();
+            }
+
+            string accessToken = GetAccessTokenAsync(config.Value.FhirServerUrl, default).Result;
+            _refreshTimer = new Timer(30000);
+            _refreshTimer.Elapsed += RefreshToken;
+            _refreshTimer.Start();
+        }
+
+        private void RefreshToken(object source, ElapsedEventArgs e)
+        {
+            _logger.LogInformation("Checking token from background thread");
+
+            foreach (var resourceUrl in _accessTokenDic.Keys)
+            {
+                if (_accessTokenDic.TryGetValue(resourceUrl, out AccessToken accessToken) && accessToken.ExpiresOn < DateTimeOffset.UtcNow.AddMinutes(4))
+                {
+                    var scopes = new string[] { resourceUrl.TrimEnd('/') + "/.default" };
+                    var newToken = _tokenCredential.GetToken(new TokenRequestContext(scopes), default);
+                    _accessTokenDic.TryUpdate(resourceUrl, newToken, accessToken);
+
+                    _logger.LogInformation("Refereshed token from background thread");
+                }
             }
         }
 
