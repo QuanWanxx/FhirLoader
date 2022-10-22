@@ -49,8 +49,9 @@ namespace QuwanLoader
                 _logger.LogInformation("Start upload service.");
 
                 var channel = Channel.CreateBounded<ResourceItem>(200000);
-                var readTask = _blobReader.ReadAsync(channel.Writer, cancellationToken);
-                await _fhirUploader.UploadAsync(channel.Reader, cancellationToken);
+                var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var readTask = _blobReader.ReadAsync(channel.Writer, cancellationTokenSource);
+                await _fhirUploader.UploadAsync(channel.Reader, cancellationTokenSource.Token);
                 await readTask;
 
                 _logger.LogInformation("Stop upload service.");

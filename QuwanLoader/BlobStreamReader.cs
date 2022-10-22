@@ -44,7 +44,7 @@ public class BlobStreamReader
             _tokenCredential = new DefaultAzureCredential();
         }
     }
-    public async Task ReadAsync(ChannelWriter<ResourceItem> writer, CancellationToken cancellationToken = default)
+    public async Task ReadAsync(ChannelWriter<ResourceItem> writer, CancellationTokenSource cancellationTokenSource)
     {
         List<string> blobUrls = LoadBlobFileList(_blobListFileName);
         _logger.LogInformation($"Loaded {blobUrls.Count()} blob urls from {_blobListFileName}.");
@@ -59,7 +59,7 @@ public class BlobStreamReader
                 tasks.Remove(finishedTask);
             }
 
-            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, cancellationToken)));
+            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, cancellationTokenSource)));
         }
 
         await Task.WhenAll(tasks);
@@ -67,32 +67,38 @@ public class BlobStreamReader
         writer.Complete();
     }
 
-    private async Task ReadSingleBlobAsync(string blobUrl, ChannelWriter<ResourceItem> writer, CancellationToken cancellationToken = default)
+    private async Task ReadSingleBlobAsync(string blobUrl, ChannelWriter<ResourceItem> writer, CancellationTokenSource cancellationTokenSource = default)
     {
         _logger.LogInformation($"Read blob content from {blobUrl}");
-        cancellationToken.ThrowIfCancellationRequested();
+        if (cancellationTokenSource.IsCancellationRequested)
+        {
+            throw new OperationCanceledException("Blob reader canceled.");
+        };
         int index = 1;
 
         try
         {
             var blobClient = new BlobClient(new Uri(blobUrl), _tokenCredential);
-            using var stream = await blobClient.OpenReadAsync(0, bufferSize: 40960, cancellationToken: cancellationToken);
+            using var stream = await blobClient.OpenReadAsync(0, bufferSize: 40960, cancellationToken: cancellationTokenSource.Token);
             using var streamReader = new StreamReader(stream);
             string line;
             do
             {
                 line = await streamReader.ReadLineAsync();
-                if (await writer.WaitToWriteAsync())
+                if (!string.IsNullOrEmpty(line))
                 {
-                    MatchCollection matches = Regex.Matches(line, "[\"resourceType\"]:\"([A-Za-z]+)\",\"id\":\"([a-z0-9-]+)\"");
-                    var item = new ResourceItem { Resource = line, BlobName = blobUrl, Index = index, ResourceType = matches[0].Groups[1].Value, Id = matches[0].Groups[2].Value };
-                    await writer.WriteAsync(item);
-                }
-                index++;
+                    if (await writer.WaitToWriteAsync())
+                    {
+                        MatchCollection matches = Regex.Matches(line, "[\"resourceType\"]:\"([A-Za-z]+)\",\"id\":\"([a-z0-9-]+)\"");
+                        var item = new ResourceItem { Resource = line, BlobName = blobUrl, Index = index, ResourceType = matches[0].Groups[1].Value, Id = matches[0].Groups[2].Value };
+                        await writer.WriteAsync(item);
+                    }
+                    index++;
 
-                if (index % 500 == 0)
-                {
-                    _logger.LogInformation($"Load {index} resources from {blobUrl}");
+                    if (index % 500 == 0)
+                    {
+                        _logger.LogInformation($"Load {index} resources from {blobUrl}");
+                    }
                 }
             }
             while (line != null);
@@ -100,6 +106,8 @@ public class BlobStreamReader
         catch (Exception ex)
         {
             _logger.LogError($"Read blob {blobUrl} failed: {ex}");
+            cancellationTokenSource.Cancel();
+            throw;
         }
 
         _logger.LogInformation($"Completed reading {index - 1} resources from {blobUrl}");
