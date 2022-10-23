@@ -63,12 +63,6 @@ namespace FhirLoader.QuwanLoader
                         .WaitAndRetryAsync(pollyDelays, (result, timeSpan, retryCount, context) =>
                         {
                             string error = result.Exception?.ToString();
-                            if (error == null)
-                            {
-                                var content = result.Result.Content.ReadAsStream();
-                                using var streamReader = new StreamReader(content);
-                                error = streamReader.ReadToEnd();
-                            }
                             _logger.LogWarning($"Request failed with {result?.Result?.StatusCode}. {result.Result?.RequestMessage?.RequestUri}: {error}. Waiting {timeSpan} before next retry. Retry attempt {retryCount}");
                         });
         }
@@ -109,7 +103,7 @@ namespace FhirLoader.QuwanLoader
                 HttpResponseMessage uploadResult = await _retryPolicy
                         .ExecuteAsync(() =>
                         {
-                            return _httpClient.SendAsync(message, cancellationToken);
+                            return _httpClient.SendAsync(message.Clone(), cancellationToken);
                         });
 
                 if (!uploadResult.IsSuccessStatusCode)
