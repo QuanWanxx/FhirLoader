@@ -61,7 +61,8 @@ public class BlobStreamReader
                 tasks.Remove(finishedTask);
             }
 
-            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, $"{i}/{blobUrls.Count}", cancellationTokenSource)));
+            string progress = $"{i}/{blobUrls.Count}";
+            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, progress, cancellationTokenSource)));
         }
 
         await Task.WhenAll(tasks);
