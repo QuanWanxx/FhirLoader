@@ -50,8 +50,10 @@ public class BlobStreamReader
         _logger.LogInformation($"Loaded {blobUrls.Count()} blob urls from {_blobListFileName}.");
 
         List<Task> tasks = new List<Task>();
+        int i = 0;
         foreach (var blobUrl in blobUrls)
         {
+            i++;
             if (tasks.Count >= _readBlobConcurrency)
             {
                 var finishedTask = await Task.WhenAny(tasks);
@@ -59,7 +61,7 @@ public class BlobStreamReader
                 tasks.Remove(finishedTask);
             }
 
-            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, cancellationTokenSource)));
+            tasks.Add(Task.Run(() => ReadSingleBlobAsync(blobUrl, writer, $"{i}/{blobUrls.Count}", cancellationTokenSource)));
         }
 
         await Task.WhenAll(tasks);
@@ -67,12 +69,12 @@ public class BlobStreamReader
         writer.Complete();
     }
 
-    private async Task ReadSingleBlobAsync(string blobUrl, ChannelWriter<ResourceItem> writer, CancellationTokenSource cancellationTokenSource = default)
+    private async Task ReadSingleBlobAsync(string blobUrl, ChannelWriter<ResourceItem> writer, string progress, CancellationTokenSource cancellationTokenSource = default)
     {
-        _logger.LogInformation($"Read blob content from {blobUrl}");
+        _logger.LogInformation($"Read blob {progress} from {blobUrl}");
         if (cancellationTokenSource.IsCancellationRequested)
         {
-            throw new OperationCanceledException("Blob reader canceled.");
+            throw new OperationCanceledException($"Blob reader {progress} canceled.");
         };
         int index = 1;
 
@@ -95,9 +97,9 @@ public class BlobStreamReader
                     }
                     index++;
 
-                    if (index % 500 == 0)
+                    if (index % 1000 == 0)
                     {
-                        _logger.LogInformation($"Load {index} resources from {blobUrl}");
+                        _logger.LogInformation($"Load {index} resources from {progress} {blobUrl}");
                     }
                 }
             }
@@ -105,12 +107,12 @@ public class BlobStreamReader
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Read blob {blobUrl} failed: {ex}");
+            _logger.LogError($"Read blob {progress} {blobUrl} failed: {ex}");
             cancellationTokenSource.Cancel();
             throw;
         }
 
-        _logger.LogInformation($"Completed reading {index - 1} resources from {blobUrl}");
+        _logger.LogInformation($"Completed reading {index - 1} resources from {progress} {blobUrl}");
     }
 
     private List<string> LoadBlobFileList(string fileName)

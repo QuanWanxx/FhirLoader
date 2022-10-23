@@ -120,7 +120,7 @@ namespace FhirLoader.QuwanLoader
 
                 processedCount++;
 
-                if (processedCount % 200 == 0)
+                if (processedCount % 1000 == 0)
                 {
                     _logger.LogInformation($"Worker {id}, processed {processedCount} resources.");
                 }

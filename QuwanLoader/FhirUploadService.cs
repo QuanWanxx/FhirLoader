@@ -20,7 +20,6 @@ namespace QuwanLoader
         private FhirUploader _fhirUploader;
         private FhirAccessTokenProvider _tokenProvider;
         private ILogger<FhirUploadService> _logger;
-        private TelemetryClient _telemetryClient;
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
 
         public FhirUploadService(
@@ -28,7 +27,6 @@ namespace QuwanLoader
             BlobStreamReader blobReader,
             FhirUploader fhirUploader,
             FhirAccessTokenProvider tokenProvider,
-            TelemetryClient tc,
             ILogger<FhirUploadService> logger)
         {
             _hostApplicationLifetime = hostApplicationLifetime;
@@ -36,7 +34,6 @@ namespace QuwanLoader
             _fhirUploader = fhirUploader;
             _tokenProvider = tokenProvider;
 
-            _telemetryClient = tc;
             _logger = logger;
         }
 
@@ -44,18 +41,15 @@ namespace QuwanLoader
         {
             _tokenProvider.EnsureInitialized(cancellationToken);
 
-            using (_telemetryClient.StartOperation<RequestTelemetry>("UploadFhir"))
-            {
-                _logger.LogInformation("Start upload service.");
+            _logger.LogInformation("Start upload service.");
 
-                var channel = Channel.CreateBounded<ResourceItem>(200000);
-                var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                var readTask = _blobReader.ReadAsync(channel.Writer, cancellationTokenSource);
-                await _fhirUploader.UploadAsync(channel.Reader, cancellationTokenSource.Token);
-                await readTask;
+            var channel = Channel.CreateBounded<ResourceItem>(200000);
+            var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var readTask = _blobReader.ReadAsync(channel.Writer, cancellationTokenSource);
+            await _fhirUploader.UploadAsync(channel.Reader, cancellationTokenSource.Token);
+            await readTask;
 
-                _logger.LogInformation("Stop upload service.");
-            }
+            _logger.LogInformation("Stop upload service.");
 
             _hostApplicationLifetime.StopApplication();
         }

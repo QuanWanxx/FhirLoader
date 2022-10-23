@@ -1,3 +1,4 @@
+using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,7 +24,6 @@ namespace FhirLoader.QuwanLoader
                     configHost.AddEnvironmentVariables(prefix: "PREFIX_");
                     configHost.AddCommandLine(args);
                 })
-               .ConfigureLogging(builder => builder.AddFile()) // <- Add this line
                .ConfigureServices((context, services) =>
                {
                    var configurationRoot = context.Configuration;
@@ -34,7 +34,10 @@ namespace FhirLoader.QuwanLoader
                     .AddSingleton<FhirUploader>()
                     .AddSingleton<BlobStreamReader>()
                     .AddHostedService<FhirUploadService>()
-                    .AddApplicationInsightsTelemetryWorkerService();
+                    .AddApplicationInsightsTelemetryWorkerService(new ApplicationInsightsServiceOptions {  EnableDependencyTrackingTelemetryModule = false} );
+    
+                   var logger = services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+                   logger.LogInformation("Logging setup.");
                }).Build();
 
             // Application code should start here.
