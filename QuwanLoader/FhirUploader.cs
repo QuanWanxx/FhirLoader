@@ -17,6 +17,8 @@ using Newtonsoft.Json.Linq;
 using Polly;
 using Polly.Retry;
 using QuwanLoader;
+using System.Timers;
+using Timer = System.Timers.Timer;
 
 namespace FhirLoader.QuwanLoader
 {
@@ -67,60 +69,108 @@ namespace FhirLoader.QuwanLoader
                         });
         }
 
-        public async Task UploadAsync(ChannelReader<ResourceItem> channelReader, CancellationToken cancellationToken = default)
+        public async Task UploadAsync(ChannelReader<ResourceItem> channelReader, CancellationTokenSource cancellationTokenSource)
         {
-            var tasks = new List<Task<int>>();
+            var tasks = new List<Task<Tuple<string, int>>>();
             for(int i = 0; i < _maxTaskCount; i ++)
             {
                 string workerId = $"Worker {i}";
-                tasks.Add(Task.Run(() => UploadInternalAsync(workerId, channelReader, cancellationToken)));
+                tasks.Add(Task.Run(() => UploadInternalAsync(workerId, channelReader, cancellationTokenSource.Token)));
             }
             _logger.LogInformation($"Initialized {tasks.Count()} FHIR uploaders.");
 
-            var counts = await Task.WhenAll(tasks);
-            _logger.LogInformation($"Upload finished: {counts.Sum()} resources loaded.");
-        }
+            var workerCounts = new Dictionary<string, int>();
 
-        private async Task<int> UploadInternalAsync(string id, ChannelReader<ResourceItem> channelReader, CancellationToken cancellationToken = default)
-        {
-            int processedCount = 0;
-            while (await channelReader.WaitToReadAsync())
+            while (tasks.Any())
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var resourceItem = await channelReader.ReadAsync();
-                StringContent content = new StringContent(resourceItem.Resource, Encoding.UTF8, "application/json");
-
-                string accessToken = _needAuth ? await _accessTokenProvider.GetAccessTokenAsync(_fhirServerUrl.AbsoluteUri, cancellationToken) : string.Empty;
-                var message = new HttpRequestMessage(HttpMethod.Put, new Uri(_fhirServerUrl, $"/{resourceItem.ResourceType}/{resourceItem.Id}"));
-
-                message.Content = content;
-                if (_needAuth)
+                var completed = await Task.WhenAny(tasks);
+                try
                 {
-                    message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                    var result = await completed;
+                    workerCounts[result.Item1] = result.Item2;
+                    tasks.Remove(completed);
                 }
-
-                HttpResponseMessage uploadResult = await _retryPolicy
-                        .ExecuteAsync(() =>
-                        {
-                            return _httpClient.SendAsync(message.Clone(), cancellationToken);
-                        });
-
-                if (!uploadResult.IsSuccessStatusCode)
+                catch (Exception ex)
                 {
-                    string resultContent = await uploadResult.Content.ReadAsStringAsync(cancellationToken);
-                    _logger.LogError($"Unable to upload to server. Error code: {uploadResult.StatusCode}, resource content: {resourceItem.Resource}");
-                }
-
-                processedCount++;
-
-                if (processedCount % 1000 == 0)
-                {
-                    _logger.LogInformation($"Worker {id}, processed {processedCount} resources.");
+                    _logger.LogError(ex, $"upload failed. {ex}");
+                    cancellationTokenSource.Cancel();
+                    return;
                 }
             }
 
-            return processedCount;
+            foreach(var item in workerCounts)
+            {
+                _logger.LogInformation($"Process summary >> {item.Key}: {item.Value}");
+            }
+
+            _logger.LogInformation($"Upload finished: {workerCounts.Values.Sum()} resources loaded.");
+        }
+
+        private async Task<Tuple<string, int>> UploadInternalAsync(string id, ChannelReader<ResourceItem> channelReader, CancellationToken cancellationToken = default)
+        {
+            int processedCount = 0;
+            DateTime current = DateTime.Now;
+
+            try
+            {
+                while (await channelReader.WaitToReadAsync(cancellationToken))
+                {
+                    bool shouldHeartBeat = false;
+                    if (current.AddMinutes(2) < DateTime.Now)
+                    {
+                        current = DateTime.Now;
+                        _logger.LogInformation($"{current} {id}, starts to read.");
+
+                        shouldHeartBeat = true;
+                    }
+
+                    var resourceItem = await channelReader.ReadAsync(cancellationToken);
+                    StringContent content = new StringContent(resourceItem.Resource, Encoding.UTF8, "application/json");
+
+                    string accessToken = _needAuth ? _accessTokenProvider.GetAccessTokenAsync(_fhirServerUrl.AbsoluteUri, cancellationToken) : string.Empty;
+                    var message = new HttpRequestMessage(HttpMethod.Put, new Uri(_fhirServerUrl, $"/{resourceItem.ResourceType}/{resourceItem.Id}"));
+
+                    message.Content = content;
+                    if (_needAuth)
+                    {
+                        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                    }
+
+                    HttpResponseMessage uploadResult = await _retryPolicy
+                            .ExecuteAsync(() =>
+                            {
+                                return _httpClient.SendAsync(message.Clone(), cancellationToken);
+                            });
+
+                    if (!uploadResult.IsSuccessStatusCode)
+                    {
+                        string resultContent = await uploadResult.Content.ReadAsStringAsync(cancellationToken);
+                        _logger.LogError($"{id} Unable to upload to server. Error code: {uploadResult.StatusCode}, resource content: {resourceItem.Resource}");
+                    }
+
+                    processedCount++;
+
+                    if (processedCount % 10000 == 0)
+                    {
+                        _logger.LogInformation($"{id}, processed {processedCount} resources.");
+                    }
+
+                    if (shouldHeartBeat)
+                    {
+                        _logger.LogInformation($"{current} {id}, waits to read next.");
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"{id} execution failed! {ex}");
+                throw;
+            }
+
+            _logger.LogInformation($"{id} completed with {processedCount}");
+
+            return Tuple.Create(id, processedCount);
         }
     }
 }

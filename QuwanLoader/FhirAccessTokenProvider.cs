@@ -45,7 +45,7 @@ namespace FhirLoader.QuwanLoader
                 _tokenCredential = new DefaultAzureCredential();
             }
 
-            string accessToken = GetAccessTokenAsync(config.Value.FhirServerUrl, default).Result;
+            string accessToken = GetAccessTokenAsync(config.Value.FhirServerUrl, default);
             _refreshTimer = new Timer(30000);
             _refreshTimer.Elapsed += RefreshToken;
             _refreshTimer.Start();
@@ -83,7 +83,7 @@ namespace FhirLoader.QuwanLoader
             }
         }
 
-        public async Task<string> GetAccessTokenAsync(string resourceUrl, CancellationToken cancellationToken = default)
+        public string GetAccessTokenAsync(string resourceUrl, CancellationToken cancellationToken = default)
         {
             try
             {
