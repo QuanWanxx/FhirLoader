@@ -61,6 +61,7 @@ namespace FhirLoader.QuwanLoader
             };
             _retryPolicy = Policy
                         .Handle<HttpRequestException>()
+                        .Or<TaskCanceledException>()
                         .OrResult<HttpResponseMessage>(response => !response.IsSuccessStatusCode)
                         .WaitAndRetryAsync(pollyDelays, (result, timeSpan, retryCount, context) =>
                         {

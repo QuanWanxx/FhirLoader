@@ -26,6 +26,12 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="fhir200g_bloblist.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="fhir300g_bloblist.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="fhir50g_bloblist.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
