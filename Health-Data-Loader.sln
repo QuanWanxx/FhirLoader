@@ -7,6 +7,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlobListGenerator", "src\Bl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fhir.Loader.Tool", "src\Fhir.Loader.Tool\Fhir.Loader.Tool.csproj", "{1189498A-6606-40DA-A423-25C8B9E4F5DC}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dicom.Operation.Example", "src\Dicom.Operation.Example\Dicom.Operation.Example.csproj", "{5E0F0F1E-B23F-4C7E-9B34-DC3E4780A978}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dicom.Loader.Tool", "src\Dicom.Loader.Tool\Dicom.Loader.Tool.csproj", "{110A211F-5968-470D-8BC9-E3FEDAB2AD5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{1189498A-6606-40DA-A423-25C8B9E4F5DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1189498A-6606-40DA-A423-25C8B9E4F5DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1189498A-6606-40DA-A423-25C8B9E4F5DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E0F0F1E-B23F-4C7E-9B34-DC3E4780A978}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E0F0F1E-B23F-4C7E-9B34-DC3E4780A978}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E0F0F1E-B23F-4C7E-9B34-DC3E4780A978}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E0F0F1E-B23F-4C7E-9B34-DC3E4780A978}.Release|Any CPU.Build.0 = Release|Any CPU
+		{110A211F-5968-470D-8BC9-E3FEDAB2AD5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{110A211F-5968-470D-8BC9-E3FEDAB2AD5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{110A211F-5968-470D-8BC9-E3FEDAB2AD5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{110A211F-5968-470D-8BC9-E3FEDAB2AD5D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
