@@ -1,16 +1,12 @@
+using System.IO;
+using System.Threading.Tasks;
 using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using QuwanLoader;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 
-namespace FhirLoader.QuwanLoader
+namespace Fhir.Loader.Tool
 {
     public class Program
     {

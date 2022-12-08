@@ -1,22 +1,20 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Threading.Channels;
-using System.Threading.Tasks;
-using Azure.Storage.Blobs;
-using Azure.Identity;
 using System.Text.RegularExpressions;
 using System.Linq;
-using Microsoft.Extensions.Logging;
-using System.IO.Enumeration;
-using Microsoft.Extensions.Options;
-using QuwanLoader;
 using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using Azure.Core;
+using Azure.Storage.Blobs;
+using Azure.Identity;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Fhir.Loader.Tool;
 
 public class BlobStreamReader
 {
-    private readonly Regex regex = new Regex("[\"resourceType\"]:\"(A-Za-z+)\"");
     private readonly string _blobListFileName;
     private readonly int _readBlobConcurrency;
     private readonly ILogger<BlobStreamReader> _logger;

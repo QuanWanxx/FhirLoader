@@ -6,13 +6,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using FhirLoader.QuwanLoader;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace QuwanLoader
+namespace Fhir.Loader.Tool
 {
     public class FhirUploadService : IHostedService
     {
