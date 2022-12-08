@@ -1,5 +1,0 @@
-{
-  "FhirServerUrl": "https://example-fhirserver.azurewebsites.net",
-  "AccessToken": "{Bearer token if use PaaS Fhir server}",
-  "DirectoryPath": "{Fhir NDJSON files directory}"
-}

@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Timers;
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using QuwanLoader;
 using Timer = System.Timers.Timer;
 
-namespace FhirLoader.QuwanLoader
+namespace Fhir.Loader.Tool
 {
     /// <summary>
     /// Provide access token for the given FHIR url from token credential.

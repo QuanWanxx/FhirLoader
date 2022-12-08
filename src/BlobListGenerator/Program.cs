@@ -12,7 +12,7 @@ namespace BlobListGenerator
         {
             string containerUri = "https://prefdatastore.blob.core.windows.net/synthea";
             string folderPath = "50g";
-            string outputFileName = $"../../../fhir{folderPath}_bloblist.txt";
+            string outputFileName = $"../../../data/fhir{folderPath}_bloblist.txt";
             var blobContainerClient = new BlobContainerClient(new Uri(containerUri), new DefaultAzureCredential());
             var pages = blobContainerClient.GetBlobsAsync(prefix: folderPath);
             using var filestream = File.OpenWrite(outputFileName);

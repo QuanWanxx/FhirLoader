@@ -1,26 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Azure.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Identity.Client;
-using Newtonsoft.Json.Linq;
 using Polly;
 using Polly.Retry;
-using QuwanLoader;
-using System.Timers;
-using Timer = System.Timers.Timer;
 
-namespace FhirLoader.QuwanLoader
+namespace Fhir.Loader.Tool
 {
     public class FhirUploader
     {
