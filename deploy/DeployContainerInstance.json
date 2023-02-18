@@ -1,0 +1,207 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "uploaderToolName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 24,
+            "metadata": {
+                "description": "The name of the container instance that you wish to create."
+            }
+        },
+        "fhirServerUrl": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The fhir server endpoint you wish to upload data to."
+            }
+        },
+        "fhirVersion": {
+            "type": "string",
+            "defaultValue": "R4",
+            "allowedValues": ["R4"]
+        },
+        "serverAuthentication": {
+            "type": "bool",
+            "defaultValue": true,
+            "allowedValues": [true, false],
+            "metadata": {
+                "description": "Then authentication to access source API server. Set None if you are using an public server API instance."
+            }
+        },
+        "readBlobConcurrency": {
+            "type": "int",
+            "defaultValue": 20,
+            "metadata": {
+                "description": "Concurrent jobs reading FHIR data blobs."
+            }
+        },
+        "putFhirConcurrency": {
+            "type": "int",
+            "defaultValue": 80,
+            "metadata": {
+                "description": "Concurrent jobs putting FHIR data to service."
+            }
+        },
+        "image": {
+            "type": "string",
+            "defaultValue": "quwanacross1123.azurecr.io/fhirloadertool:test",
+            "metadata": {
+              "description": "Container image to deploy. Should be of the form repoName/imagename:tag for images stored in public Docker Hub, or a fully qualified URI for other registries. Images from private registries require additional registry credentials."
+            }
+        },
+        "storageAccountType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_GRS",
+                "Standard_RAGRS"
+            ],
+            "metadata": {
+                "description": "Storage Account type"
+            }
+        },
+        "deployAppInsights": {
+            "type": "bool",
+            "defaultValue": true,
+            "allowedValues": [
+            true,
+            false
+            ],
+            "metadata": {
+                "description": "Whether to deploy the Application Insights."
+            }
+        },
+        "appInsightsLocation": {
+            "type": "string",
+            "defaultValue": "eastus",
+            "allowedValues": [
+                "southeastasia",
+                "northeurope",
+                "westeurope",
+                "eastus",
+                "southcentralus",
+                "westus2",
+                "usgovvirginia",
+                "usgovarizona"
+            ],
+            "metadata": {
+                "description": "Location for Application Insights"
+            }
+        }
+    },
+    "variables": {
+        "uploaderToolName": "[toLower(parameters('uploaderToolName'))]",
+        "applicationInsightsName": "[concat('AppInsights-', variables('uploaderToolName'))]",
+        "deployAppInsights": "[parameters('deployAppInsights')]",
+        "storageAccountName": "[concat(substring(replace(variables('uploaderToolName'), '-', ''), 0, min(11, length(replace(variables('uploaderToolName'), '-', '')))), uniquestring(resourceGroup().id, variables('uploaderToolName')))]",
+        "storageQueueDataContributerRoleId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')]",
+        "restartPolicy": "Never"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            },
+            "properties": {
+                "isHnsEnabled": true
+            },
+            "kind": "StorageV2"
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
+            "apiVersion": "2018-09-01-preview",
+            "name": "[concat(variables('storageAccountName'), '/Microsoft.Authorization/', guid(uniqueString(variables('storageAccountName'), variables('uploaderToolName'), 'queue')))]",
+            "dependsOn": [
+                "[variables('storageAccountName')]",
+                "[variables('uploaderToolName')]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[variables('storageQueueDataContributerRoleId')]",
+                "principalId": "[reference(concat('Microsoft.ContainerInstance/containerGroups/', variables('uploaderToolName')), '2021-09-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+            }
+        },
+        {
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "apiVersion": "2021-09-01",
+            "name": "[variables('uploaderToolName')]",
+            "location": "[parameters('location')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "containers": [
+                    {
+                        "name": "[variables('uploaderToolName')]",
+                        "properties": {
+                            "image": "[parameters('image')]",
+                            "resources": {
+                                "requests": {
+                                    "cpu": 4,
+                                    "memoryInGB": 8
+                                }
+                            },
+                            "environmentVariables": [
+                                {
+                                    "name": "ApplicationInsights__ConnectionString",
+                                    "value": "[if(variables('deployAppInsights'),reference(resourceId('microsoft.insights/components', variables('applicationInsightsName')), '2020-02-02-preview').ConnectionString, '')]"
+                                },
+                                {
+                                    "name": "Logging__ApplicationInsights__LogLevel__Default",
+                                    "value": "Information"
+                                },
+                                {
+                                    "name": "fhirServerUrl",
+                                    "value": "[parameters('fhirServerUrl')]"
+                                },
+                                {
+                                    "name": "ReadBlobConcurrency",
+                                    "value": "[parameters('readBlobConcurrency')]"
+                                },
+                                {
+                                    "name": "PutFhirConcurrency",
+                                    "value": "[parameters('putFhirConcurrency')]"
+                                },
+                                {
+                                    "name": "useFhirAuthentication",
+                                    "value": "[parameters('serverAuthentication')]"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "osType": "Linux",
+                "restartPolicy": "[variables('restartPolicy')]"
+            }
+        },
+        {
+            "type": "microsoft.insights/components",
+            "apiVersion": "2020-02-02-preview",
+            "name": "[variables('applicationInsightsName')]",
+            "location": "[parameters('appInsightsLocation')]",
+            "condition": "[variables('deployAppInsights')]",
+            "tags": "[createObject(concat('hidden-link:', resourceId('Microsoft.Web/sites', variables('applicationInsightsName'))),'Resource')]",
+            "properties": {
+                "ApplicationId": "[variables('applicationInsightsName')]",
+                "Request_Source": "IbizaWebAppExtensionCreate"
+            }
+        }
+    ]
+}
