@@ -39,14 +39,14 @@
         },
         "readBlobConcurrency": {
             "type": "int",
-            "defaultValue": 20,
+            "defaultValue": 30,
             "metadata": {
                 "description": "Concurrent jobs reading FHIR data blobs."
             }
         },
         "putFhirConcurrency": {
             "type": "int",
-            "defaultValue": 80,
+            "defaultValue": 150,
             "metadata": {
                 "description": "Concurrent jobs putting FHIR data to service."
             }
@@ -182,6 +182,10 @@
                                 {
                                     "name": "useFhirAuthentication",
                                     "value": "[parameters('serverAuthentication')]"
+                                },
+                                {
+                                    "name": "blobListFile",
+                                    "value": "data/fhir50g_bloblist.txt"
                                 }
                             ]
                         }
