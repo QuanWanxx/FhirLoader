@@ -32,6 +32,9 @@
     <None Update="data\fhir300g_bloblist.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="data\fhirsimple_bloblist.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="data\fhir50g_bloblist.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
